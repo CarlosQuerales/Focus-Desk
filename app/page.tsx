@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BriefcaseBusiness, Building2, Check, ChevronDown, Clock3, Download, FileText, Pause, Play, Plus, Square, TimerReset } from 'lucide-react';
+import { BriefcaseBusiness, Building2, Check, ChevronDown, Clock3, Download, FileText, Pause, Play, Plus, Square, TimerReset, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -68,6 +68,7 @@ export default function Home() {
   const [fileStatus, setFileStatus] = useState<'checking' | 'linked' | 'not-linked' | 'saving' | 'error'>('checking');
   const stateRef = useRef(state);
   const nowRef = useRef(now);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = safeLoad();
@@ -219,6 +220,30 @@ export default function Home() {
     setMessage('Historial exportado');
   }
 
+  async function importBackup(file: File | undefined) {
+    if (!file) return;
+    try {
+      if (file.size > 2_000_000) throw new Error('file-too-large');
+      const parsed = JSON.parse(await file.text()) as { sessions?: unknown };
+      if (!Array.isArray(parsed.sessions)) throw new Error('invalid-format');
+      const validSessions = parsed.sessions.filter((item): item is Session => {
+        if (!item || typeof item !== 'object') return false;
+        const session = item as Partial<Session>;
+        return typeof session.id === 'string' && typeof session.client === 'string' && typeof session.project === 'string' && typeof session.task === 'string' && typeof session.notes === 'string' && Number.isFinite(session.startedAt) && Number.isFinite(session.endedAt) && Number.isFinite(session.duration) && Number(session.duration) > 0 && typeof session.dateKey === 'string';
+      });
+      if (validSessions.length !== parsed.sessions.length) throw new Error('invalid-session');
+      const knownIds = new Set(state.sessions.map((session) => session.id));
+      const incoming = validSessions.filter((session) => !knownIds.has(session.id));
+      const tasks = Array.from(new Set([...state.tasks, ...incoming.map((session) => session.task)]));
+      setState((current) => ({ ...current, tasks, sessions: [...incoming, ...current.sessions].sort((a, b) => b.endedAt - a.endedAt) }));
+      setMessage(incoming.length ? `${incoming.length} sesión importada correctamente` : 'Ese respaldo ya estaba importado');
+    } catch {
+      setMessage('No se pudo importar: selecciona un respaldo JSON válido de FocusDesk');
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
+  }
+
   if (!ready) return <main className="min-h-screen bg-[#071c26]" />;
 
   return (
@@ -230,6 +255,8 @@ export default function Home() {
             <div><p className="text-lg font-bold tracking-[-0.03em]">FocusDesk</p><p className="text-xs font-medium text-[#60757c]">Registro de tiempo local</p></div>
           </div>
           <div className="flex items-center gap-2">
+            <input ref={importInputRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => void importBackup(event.target.files?.[0])} />
+            <Button variant="outline" onClick={() => importInputRef.current?.click()} className="border-[#cfdbd8] bg-white"><Upload className="size-4" /><span className="hidden sm:inline">Importar</span></Button>
             <Button variant="outline" onClick={exportCsv} className="border-[#cfdbd8] bg-white"><Download className="size-4" /><span className="hidden sm:inline">Exportar</span></Button>
           </div>
         </div>

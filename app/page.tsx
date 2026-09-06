@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BriefcaseBusiness, Building2, Check, ChevronDown, Clock3, Database, Download, FileCheck2, FileText, Pause, Play, Plus, Square, TimerReset } from 'lucide-react';
+import { BriefcaseBusiness, Building2, Check, ChevronDown, Clock3, Download, FileText, Pause, Play, Plus, Square, TimerReset } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -160,29 +160,6 @@ export default function Home() {
     setMessage('Sesión en pausa; tu tiempo está guardado');
   }
 
-  async function connectDatabaseFile() {
-    if (!window.showSaveFilePicker) {
-      downloadDatabaseCopy(state.sessions);
-      setMessage('Tu navegador descargó una copia de la base de datos');
-      return;
-    }
-    try {
-      const handle = await chooseDatabaseFile();
-      if (!handle) return;
-      await writeDatabaseFile(handle, state.sessions);
-      setFileHandle(handle);
-      setFileStatus('linked');
-      setMessage(`Archivo vinculado: ${handle.name}`);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        setMessage('No se seleccionó ningún archivo');
-        return;
-      }
-      setFileStatus('error');
-      setMessage('No se pudo vincular el archivo. El respaldo del navegador sigue activo.');
-    }
-  }
-
   async function persistSessions(sessions: Session[]) {
     setFileStatus('saving');
     try {
@@ -253,21 +230,17 @@ export default function Home() {
             <div><p className="text-lg font-bold tracking-[-0.03em]">FocusDesk</p><p className="text-xs font-medium text-[#60757c]">Registro de tiempo local</p></div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={connectDatabaseFile} disabled={fileStatus === 'saving' || fileStatus === 'checking'} className="border-[#cfdbd8] bg-white">
-              {fileStatus === 'linked' ? <FileCheck2 className="size-4 text-[#0a7c68]" /> : <Database className="size-4" />}
-              <span className="hidden md:inline">{fileStatus === 'linked' ? 'Archivo vinculado' : fileStatus === 'saving' ? 'Guardando…' : 'Vincular archivo'}</span>
-            </Button>
             <Button variant="outline" onClick={exportCsv} className="border-[#cfdbd8] bg-white"><Download className="size-4" /><span className="hidden sm:inline">Exportar</span></Button>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-5 px-5 py-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-10 lg:py-9">
+      <div className="mx-auto grid max-w-7xl gap-5 px-5 py-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-10 lg:py-9">
         <section className="overflow-hidden rounded-[28px] bg-[#071c26] text-white shadow-[0_24px_70px_rgba(7,28,38,0.18)]">
-          <div className="grid gap-8 p-6 sm:p-9 xl:grid-cols-[minmax(280px,0.85fr)_1.15fr] xl:items-center xl:p-11">
-            <div>
+          <div className="grid gap-8 p-6 sm:p-9 xl:grid-cols-[minmax(0,0.82fr)_minmax(340px,1.18fr)] xl:items-center xl:p-11">
+            <div className="min-w-0">
               <div className="mb-7 flex items-center gap-2 text-sm font-semibold text-[#9bb4b6]"><span className={`size-2.5 rounded-full ${state.status === 'running' ? 'animate-pulse bg-[#35d8a9]' : state.status === 'paused' ? 'bg-[#f5bd55]' : 'bg-[#668088]'}`} />{state.status === 'running' ? 'En curso' : state.status === 'paused' ? 'En pausa' : 'Sin sesión activa'}</div>
-              <p className="font-mono text-[clamp(3.2rem,9vw,6.8rem)] font-semibold leading-none tracking-[-0.08em] tabular-nums" aria-live="off">{formatTime(currentSeconds)}</p>
+              <p className="font-mono text-[clamp(3rem,10vw,6rem)] font-semibold leading-none tracking-[-0.08em] tabular-nums xl:text-[clamp(3.4rem,4.6vw,4.5rem)]" aria-live="off">{formatTime(currentSeconds)}</p>
               <div className="mt-3 grid grid-cols-3 font-mono text-[11px] uppercase tracking-[0.18em] text-[#769096]"><span>Horas</span><span className="text-center">Minutos</span><span className="text-right">Segundos</span></div>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Button onClick={play} disabled={state.status === 'running'} size="lg" className="h-13 rounded-full bg-[#35d8a9] px-7 font-bold text-[#06261f] hover:bg-[#5be5bd] disabled:opacity-40"><Play className="size-5 fill-current" /> {state.status === 'paused' ? 'Reanudar' : 'Iniciar'}</Button>
@@ -276,7 +249,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 sm:p-6">
+            <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.055] p-5 sm:p-6">
               <div className="grid gap-5">
                 <div><Label htmlFor="client" className="mb-2 flex items-center gap-2 text-sm text-[#9bb4b6]"><Building2 className="size-4" /> Cliente</Label><Input id="client" maxLength={80} value={state.client} disabled={state.status !== 'idle'} onChange={(event) => setState((current) => ({ ...current, client: event.target.value }))} className="h-11 border-white/10 bg-[#0d2a35] text-base text-white disabled:opacity-70" /></div>
                 <div><Label htmlFor="project" className="mb-2 flex items-center gap-2 text-sm text-[#9bb4b6]"><BriefcaseBusiness className="size-4" /> Proyecto</Label><Input id="project" maxLength={140} value={state.project} disabled={state.status !== 'idle'} onChange={(event) => setState((current) => ({ ...current, project: event.target.value }))} className="h-11 border-white/10 bg-[#0d2a35] text-base text-white disabled:opacity-70" /></div>
@@ -288,7 +261,7 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-between gap-4 border-t border-white/10 bg-black/10 px-6 py-4 text-sm sm:px-11"><p aria-live="polite" className="flex items-center gap-2 text-[#b8cacc]"><span className={`size-1.5 rounded-full ${fileStatus === 'error' ? 'bg-[#ef767a]' : 'bg-[#35d8a9]'}`} />{message}</p><p className="hidden text-[#789198] sm:block">Respaldo doble: navegador + archivo local</p></div>
+          <div className="flex items-center justify-between gap-4 border-t border-white/10 bg-black/10 px-6 py-4 text-sm sm:px-11"><p aria-live="polite" className="flex items-center gap-2 text-[#b8cacc]"><span className={`size-1.5 rounded-full ${fileStatus === 'error' ? 'bg-[#ef767a]' : 'bg-[#35d8a9]'}`} />{message}</p><p className="hidden text-[#789198] sm:block">{fileStatus === 'linked' ? 'Respaldo: navegador + archivo local' : 'Guardado automático en este navegador'}</p></div>
         </section>
 
         <aside className="grid content-start gap-5">
